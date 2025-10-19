@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: webhook-managment
+  profiles:
+    active: dev
+  data:
+    mongodb:
+      auto-index-creation: true
+
+logging:
+  level:
+    root: ERROR
+    org.springframework: ERROR
+    com.eis: TRACE
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

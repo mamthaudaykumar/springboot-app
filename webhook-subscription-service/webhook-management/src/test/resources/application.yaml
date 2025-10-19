@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: webhook-managment
+  profiles:
+    active: test
+
+logging:
+  level:
+    root: ERROR
+    org.springframework: ERROR
+    com.eis: TRACE
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

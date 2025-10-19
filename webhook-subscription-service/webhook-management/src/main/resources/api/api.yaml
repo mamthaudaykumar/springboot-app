@@ -1,0 +1,496 @@
+openapi: 3.0.3
+info:
+  title: Webhook Subscriptions Admin API
+  version: 1.0.0
+  description: API to manage webhook subscriptions and deliver event payloads.
+
+tags:
+  - name: Admin APIs
+    description: Subscription Admin APIs
+  - name: subscription
+    description: Subscription URL endpoint
+  - name: Admin Auth APIs
+    description: Authentication related endpoints
+
+paths:
+  /api/v1/admin/webhooks/subscriptions:
+    post:
+      tags: [ Admin APIs ]
+      summary: Create a webhook subscription
+      operationId: createSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [ Admin APIs ]
+      summary: Get all webhook subscriptions
+      operationId: listSubscriptions
+      parameters:
+        - name: page
+          in: query
+          description: Page number (0-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedSubscriptionSummary'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/webhooks/subscriptions/{id}:
+    get:
+      tags: [ Admin APIs ]
+      summary: Get a single webhook subscription by ID
+      operationId: getSubscriptionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionSummary'
+        '404':
+          description: Subscription not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags: [ Admin APIs ]
+      summary: Update a subscription by ID
+      operationId: updateSubscription
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionUpdateRequest'
+      responses:
+        '200':
+          description: Subscription updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          description: Invalid request body
+        '404':
+          description: Subscription not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/webhooks/subscriptions/{subscriptionId}:
+    delete:
+      tags: [ Admin APIs ]
+      summary: Delete a subscription by ID
+      operationId: deleteSubscriptionById
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Subscription deleted successfully
+        '404':
+          description: Subscription not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/webhooks/subscriptions/{subscriptionId}/subscription_type/{subscriptionTypeId}:
+    delete:
+      tags: [ Admin APIs ]
+      summary: Delete a specific subscription type under a subscription
+      operationId: deleteSubscriptionTypeById
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subscriptionTypeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Subscription type deleted successfully
+        '404':
+          description: Subscription or type not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/webhook/subscription/{subscriptionId}/platform/{platformName}/{subscriptionType}:
+    post:
+      tags: [ subscription ]
+      summary: Trigger a subscription event
+      operationId: triggerWebhook
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: platformName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: subscriptionType
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ payload ]
+              properties:
+                payload:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '202':
+          description: Accepted
+        '400':
+          description: Invalid request payload
+        '404':
+          description: Subscription not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: integer
+
+    SubscriptionRequest:
+      type: object
+      required: [ platform, name, webhookConfig, enabled, channelId, dataDomain, authentication ]
+      properties:
+        platform:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        channelId:
+          type: string
+        dataDomain:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+
+        authentication:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [ HMAC ]
+            config:
+              type: object
+              required: [ secretKey, headerName, algorithm ]
+              properties:
+                secretKey:
+                  type: string
+                headerName:
+                  type: string
+                algorithm:
+                  type: string
+                  enum: [ HmacSHA256, HmacSHA384, HmacSHA512 ]
+        webhookConfig:
+          type: object
+          properties:
+            subscriptions:
+              type: array
+              items:
+                type: object
+                required: [ subscriptionType, enabled ]
+                properties:
+                  subscriptionType:
+                    type: string
+                  enabled:
+                    type: boolean
+                  destinations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Destination'
+
+    SubscriptionUpdateRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        channelId:
+          type: string
+        dataDomain:
+          type: array
+          items:
+            type: string
+        authentication:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [ HMAC ]
+            config:
+              type: object
+              required: [ secretKey, headerName, algorithm ]
+              properties:
+                secretKey:
+                  type: string
+                headerName:
+                  type: string
+                algorithm:
+                  type: string
+                  enum: [ HmacSHA256, HmacSHA512, HmacSHA384 ]
+        webhookConfig:
+          type: object
+          properties:
+            subscriptions:
+              type: array
+              items:
+                type: object
+                properties:
+                  subscriptionTypeId:
+                    type: string
+                  subscriptionType:
+                    type: string
+                  enabled:
+                    type: boolean
+                  destinations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Destination'
+
+
+    SubscriptionResponse:
+      type: object
+      properties:
+        subscriptionId:
+          type: string
+        platform:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        channelId:
+          type: string
+        dataDomain:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        subscriptions:
+          type: array
+          items:
+            type: object
+            properties:
+              subscriptionId:
+                type: string
+              enabled:
+                type: boolean
+              subscriptionType:
+                type: string
+              subscriptionUrl:
+                type: string
+
+    SubscriptionSummary:
+      type: object
+      properties:
+        subscriptionId:
+          type: string
+        platform:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        channelId:
+          type: string
+        dataDomain:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        authentication:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [ HMAC ]
+            config:
+              type: object
+              properties:
+                secretKey:
+                  type: string
+                headerName:
+                  type: string
+                algorithm:
+                  type: string
+        subscriptions:
+          type: array
+          items:
+            type: object
+            properties:
+              subscriptionId:
+                type: string
+              enabled:
+                type: boolean
+              subscriptionType:
+                type: string
+              subscriptionUrl:
+                type: string
+              destinations:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Destination'
+
+    Destination:
+      type: object
+      properties:
+        scriptConfig:
+          $ref: '#/components/schemas/ScriptConfig'
+        routeConfig:
+          $ref: '#/components/schemas/RouteConfig'
+
+    ScriptConfig:
+      type: object
+      required: [ scriptRefName, dataDomain, headers ]
+      properties:
+        scriptRefName:
+          type: string
+        headers:
+          type: object
+          required: [ contentType, authorization ]
+          properties:
+            contentType:
+              type: string
+            authorization:
+              type: string
+
+    RouteConfig:
+      type: object
+      required: [ routeRefName, dataDomain, headers ]
+      properties:
+        routeRefName:
+          type: string
+        dataDomain:
+          type: string
+        headers:
+          type: object
+          required: [ authorization ]
+          properties:
+            authorization:
+              type: string
+
+    PagedSubscriptionSummary:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionSummary'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        pageNumber:
+          type: integer
+        pageSize:
+          type: integer
